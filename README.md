@@ -1,5 +1,6 @@
-# Introduction
+# The GO Blog.CN
 
 
 
-> https://go.dev/blog
+> [The Go Blog](https://go.dev/blog) 是 Go Dev 部分文章的中文翻译项目
+
