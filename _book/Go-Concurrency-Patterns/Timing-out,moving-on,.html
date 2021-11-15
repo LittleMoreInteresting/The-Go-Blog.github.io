@@ -1,0 +1,298 @@
+
+<!DOCTYPE HTML>
+<html lang="" >
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>Go Concurrency Patterns: Timing out, moving on · GitBook</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.3">
+        
+        
+        
+    
+    <link rel="stylesheet" href="../gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="../gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    
+
+    </head>
+    <body>
+        
+<div class="book">
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search" />
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="../">
+            
+                <a href="../">
+            
+                    
+                    简介
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" >
+            
+                <span>
+            
+                    
+                    Go Concurrency Patterns
+            
+                </span>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter active" data-level="1.2.1" data-path="Timing-out,moving-on,.html">
+            
+                <a href="Timing-out,moving-on,.html">
+            
+                    
+                    Go Concurrency Patterns: Timing out, moving on
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href=".." >Go Concurrency Patterns: Timing out, moving on</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="go-concurrency-patterns-timing-out-moving-on">Go Concurrency Patterns: Timing out, moving on</h1>
+<p>Andrew Gerrand
+23 September 2010</p>
+<p>&#x5E76;&#x53D1;&#x7F16;&#x7A0B;&#x6709;&#x5B83;&#x81EA;&#x5DF1;&#x7684;&#x5957;&#x8DEF;&#x3002; &#x6BD4;&#x5982;&#x8BF4;&#x8D85;&#x65F6;&#x5904;&#x7406;&#x3002; &#x867D;&#x7136;Go&#x7684;Channel &#x672C;&#x8EAB;&#x4E0D;&#x652F;&#x6301;&#x652F;&#x6301;&#x8D85;&#x65F6;&#x5904;&#x7406;&#xFF0C;&#x4F46;&#x5BB9;&#x6613;&#x5B9E;&#x73B0;&#x3002; &#x5047;&#x8BBE;&#x6211;&#x4EEC;&#x5E0C;&#x671B;&#x4ECE;<code>channel</code> <code>ch</code>&#x63A5;&#x6536;&#x6570;&#x636E;&#xFF0C;&#x4F46;&#x5E0C;&#x671B;&#x6700;&#x591A;&#x7B49;&#x5F85;&#x4E00;&#x79D2;&#x3002; &#x6211;&#x4EEC;&#x9996;&#x5148;&#x521B;&#x5EFA;&#x4E00;&#x4E2A;&#x4FE1;&#x53F7;<code>channel</code>&#xFF0C;&#x7136;&#x540E;&#x542F;&#x52A8;&#x4E00;&#x4E2A;<code>goroutine</code>&#x5728;&#x4E00;&#x79D2;&#x540E;&#x5411;&#x8FD9;&#x4E2A;channel&#x4E0A;&#x53D1;&#x9001;&#x4FE1;&#x53F7;</p>
+<p>Concurrent programming has its own idioms. A good example is timeouts. Although Go&#x2019;s channels do not support them directly, they are easy to implement. Say we want to receive from the channel ch, but want to wait at most one second for the value to arrive. We would start by creating a signalling channel and launching a goroutine that sleeps before sending on the channel:</p>
+<pre><code>timeout := make(chan bool, 1)
+go func() {
+    time.Sleep(1 * time.Second)
+    timeout &lt;- true
+}()
+</code></pre><p>&#x7136;&#x540E;&#xFF0C;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;<code>select</code>&#x6765;&#x63A5;&#x6536;ch&#x6216;timeout&#x3002; &#x5982;&#x679C;&#x5728;&#x4E00;&#x79D2;&#x949F;&#x540E;&#x6CA1;&#x6709;&#x4EFB;&#x4F55;&#x4E1C;&#x897F;&#x5230;&#x8FBE;ch&#xFF0C;&#x5219;&#x9009;&#x62E9;timeout&#x5206;&#x652F;&#xFF0C;&#x5E76;&#x653E;&#x5F03;&#x4ECE;ch&#x8BFB;&#x53D6;&#x6570;&#x636E;&#x3002;  </p>
+<p>We can then use a select statement to receive from either ch or timeout. If nothing arrives on ch after one second, the timeout case is selected and the attempt to read from ch is abandoned.</p>
+<pre><code>select {
+case &lt;-ch:
+// a read from ch has occurred
+case &lt;-timeout:
+// the read from ch has timed out
+}
+</code></pre><p>timeout channel &#x7684;&#x5BB9;&#x91CF;&#x4E3A;1&#xFF0C;&#x5141;&#x8BB8;&#x8D85;&#x65F6;goroutine&#x53D1;&#x9001;&#x5230;channel&#x7136;&#x540E;&#x9000;&#x51FA;&#x3002; goroutine&#x4E0D;&#x77E5;&#x9053;(&#x6216;&#x5173;&#x5FC3;)&#x662F;&#x5426;&#x6536;&#x5230;&#x4E86;&#x8BE5;&#x503C;&#x3002; &#x8FD9;&#x610F;&#x5473;&#x7740;&#x5982;&#x679C;ch &#x5728;&#x8D85;&#x65F6;&#x4E4B;&#x524D;&#x63A5;&#x6536;&#x5230;&#x6570;&#x636E;&#xFF0C;&#x8D85;&#x65F6; goroutine &#x4E0D;&#x4F1A;&#x6C38;&#x8FDC;&#x6302;&#x8D77;&#x3002; &#x8D85;&#x65F6;&#x901A;&#x9053;&#x6700;&#x7EC8;&#x5C06;&#x7531;&#x5783;&#x573E;&#x56DE;&#x6536;&#x5668;&#x56DE;&#x6536;&#x3002; </p>
+<pre><code>time.After(1 * time.Second)
+</code></pre><p>The timeout channel is buffered with space for 1 value, allowing the timeout goroutine to send to the channel and then exit. The goroutine doesn&#x2019;t know (or care) whether the value is received. This means the goroutine won&#x2019;t hang around forever if the ch receive happens before the timeout is reached. The timeout channel will eventually be deallocated by the garbage collector.</p>
+<p>(&#x5728;&#x8FD9;&#x4E2A;&#x4F8B;&#x5B50;&#x4E2D;&#xFF0C;&#x6211;&#x4EEC;&#x4F7F;&#x7528;&#x4E86;<code>time.Sleep</code>&#x6765;&#x6F14;&#x793A;goroutines &#x548C;channels &#x4E4B;&#x95F4;&#x7684;&#x8FD0;&#x884C;&#x65B9;&#x5F0F;&#x3002; &#x5728;&#x771F;&#x6B63;&#x7684;&#x7A0B;&#x5E8F;&#x4E2D;&#xFF0C;&#x4F60;&#x5E94;&#x8BE5;&#x4F7F;&#x7528; <code>time.After</code> &#x8FD4;&#x56DE;&#x4E00;&#x4E2A;channel&#x5E76;&#x5728;&#x76F8;&#x5E94;&#x7C7B;&#x578B;&#x7684;channle&#x4E0A;&#x53D1;&#x9001;&#x3002;)  </p>
+<p>(In this example we used time.Sleep to demonstrate the mechanics of goroutines and channels. In real programs you should use time.After, a function that returns a channel and sends on that channel after the specified duration.)</p>
+<p>&#x8BA9;&#x6211;&#x4EEC;&#x770B;&#x770B;&#x8FD9;&#x4E2A;&#x6A21;&#x5F0F;&#x7684;&#x53E6;&#x4E00;&#x79CD;&#x59FF;&#x52BF;&#x3002; &#x5728;&#x8FD9;&#x4E2A;&#x4F8B;&#x5B50;&#x4E2D;&#xFF0C;&#x6211;&#x4EEC;&#x6709;&#x4E00;&#x4E2A;&#x7A0B;&#x5E8F;&#xFF0C;&#x5B83;&#x53EF;&#x4EE5;&#x540C;&#x65F6;&#x4ECE;&#x591A;&#x4E2A;&#x590D;&#x5236;&#x6570;&#x636E;&#x5E93;&#x4E2D;&#x8BFB;&#x53D6;&#x6570;&#x636E;&#x3002; &#x7A0B;&#x5E8F;&#x53EA;&#x9700;&#x8981;&#x5176;&#x4E2D;&#x4E00;&#x4E2A;&#x67E5;&#x8BE2;&#x7ED3;&#x679C;&#xFF0C;&#x5E76;&#x4E14;&#x5B83;&#x5E94;&#x8BE5;&#x63A5;&#x53D7;&#x6700;&#x5148;&#x5230;&#x8FBE;&#x7684;&#x67E5;&#x8BE2;&#x7ED3;&#x679C;&#x3002;  </p>
+<p>Let&#x2019;s look at another variation of this pattern. In this example we have a program that reads from multiple replicated databases simultaneously. The program needs only one of the answers, and it should accept the answer that arrives first.</p>
+<p>Query&#x51FD;&#x6570;&#x63A5;&#x53D7;&#x4E00;&#x4E2A;&#x6570;&#x636E;&#x5E93;&#x8FDE;&#x63A5;&#x5207;&#x7247;&#x548C;&#x4E00;&#x4E2A;&#x67E5;&#x8BE2;&#x5B57;&#x7B26;&#x4E32;&#x3002; &#x5B83;&#x5E76;&#x884C;&#x5730;&#x67E5;&#x8BE2;&#x6BCF;&#x4E2A;&#x6570;&#x636E;&#x5E93;&#xFF0C;&#x5E76;&#x8FD4;&#x56DE;&#x5B83;&#x6536;&#x5230;&#x7684;&#x7B2C;&#x4E00;&#x4E2A;&#x54CD;&#x5E94;:  </p>
+<p>The function Query takes a slice of database connections and a query string. It queries each of the databases in parallel and returns the first response it receives:</p>
+<pre><code>func Query(conns []Conn, query string) Result {
+    ch := make(chan Result)
+    for _, conn := range conns {
+        go func(c Conn) {
+            select {
+            case ch &lt;- c.DoQuery(query):
+            default:
+            }
+        }(conn)
+    }
+    return &lt;-ch
+}
+</code></pre><p>&#x5728;&#x672C;&#x4F8B;&#x4E2D;&#xFF0C;&#x95ED;&#x5305;&#x901A;&#x8FC7;select&#x8BED;&#x53E5;&#x8FD4;&#x56DE;&#x67E5;&#x8BE2;&#x7ED3;&#x679C;&#x5230;ch &#x7136;&#x540E;&#x4F7F;&#x7528;default &#x5206;&#x652F;&#x6765;&#x907F;&#x514D;goroutine&#x963B;&#x585E;&#x3002; &#x5982;&#x679C;&#x53D1;&#x9001;&#x4E0D;&#x80FD;&#x7ACB;&#x5373;&#x8FDB;&#x884C;&#xFF0C;&#x5C06;&#x6267;&#x884C;default&#x5206;&#x652F;&#x3002; &#x786E;&#x4FDD;&#x5728;&#x5FAA;&#x73AF;&#x4E2D;&#x542F;&#x52A8;&#x7684;goroutine&#x4E0D;&#x4F1A;&#x963B;&#x585E;&#x3002; &#x4F46;&#x662F;&#xFF0C;&#x5982;&#x679C;&#x7ED3;&#x679C;&#x5728;&#x4E3B;&#x51FD;&#x6570;&#x6267;&#x884C;&#x63A5;&#x6536;&#x524D;&#x8FD4;&#x56DE;&#x4E86;&#xFF0C;&#x5219;&#x53D1;&#x9001;&#x53EF;&#x80FD;&#x4F1A;&#x5931;&#x8D25;&#xFF0C;&#x56E0;&#x4E3A;channel &#x7684;&#x63A5;&#x6536;&#x7AEF;&#x6CA1;&#x6709;&#x51C6;&#x5907;&#x597D;&#x8BFB;&#x53D6;&#x3002;  </p>
+<p>&#x8FD9;&#x4E2A;&#x95EE;&#x9898;&#x662F;&#x6240;&#x8C13;&#x7684;&#x7ADE;&#x6001;&#x6761;&#x4EF6;&#x7684;&#x5178;&#x578B;&#x4F8B;&#x5B50;&#xFF0C;&#x4F46;&#x662F;&#x89E3;&#x51B3;&#x65B9;&#x6CD5;&#x5F88;&#x7B80;&#x5355;&#x3002; &#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x7F13;&#x51B2;&#x901A;&#x9053;(<code>ch := make(chan Result,1)</code>)&#xFF0C;&#x786E;&#x4FDD;&#x7B2C;&#x4E00;&#x6B21;&#x53D1;&#x9001;&#x6709;&#x653E;&#x7F6E;&#x503C;&#x7684;&#x4F4D;&#x7F6E;&#x3002; &#x8FD9;&#x5C06;&#x786E;&#x4FDD;&#x53D1;&#x9001;&#x59CB;&#x7EC8;&#x6210;&#x529F;&#xFF0C;&#x5E76;&#x4E14;&#x65E0;&#x8BBA;&#x6267;&#x884C;&#x987A;&#x5E8F;&#x5982;&#x4F55;&#xFF0C;&#x90FD;&#x4F1A;&#x68C0;&#x7D22;&#x5230;&#x7B2C;&#x4E00;&#x4E2A;&#x5230;&#x8FBE;&#x7684;&#x503C;&#x3002;  </p>
+<p>In this example, the closure does a non-blocking send, which it achieves by using the send operation in select statement with a default case. If the send cannot go through immediately the default case will be selected. Making the send non-blocking guarantees that none of the goroutines launched in the loop will hang around. However, if the result arrives before the main function has made it to the receive, the send could fail since no one is ready.</p>
+<p>This problem is a textbook example of what is known as a race condition, but the fix is trivial. We just make sure to buffer the channel ch (by adding the buffer length as the second argument to make), guaranteeing that the first send has a place to put the value. This ensures the send will always succeed, and the first value to arrive will be retrieved regardless of the order of execution.</p>
+<p>&#x8FD9;&#x4E24;&#x4E2A;&#x793A;&#x4F8B;&#x6F14;&#x793A;&#x4E86;Go&#x5B9E;&#x73B0;goroutine&#x4E4B;&#x95F4;&#x590D;&#x6742;&#x4EA4;&#x4E92;&#x901A;&#x4FE1;&#x662F;&#x591A;&#x4E48;&#x7B80;&#x5355;&#x3002;  </p>
+<p>These two examples demonstrate the simplicity with which Go can express complex interactions between goroutines.</p>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class='search-results-count'></span> results matching "<span class='search-query'></span>"</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching "<span class='search-query'></span>"</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"Go Concurrency Patterns: Timing out, moving on","level":"1.2.1","depth":2,"previous":{"title":"Go Concurrency Patterns","level":"1.2","depth":1,"ref":"","articles":[{"title":"Go Concurrency Patterns: Timing out, moving on","level":"1.2.1","depth":2,"path":"Go-Concurrency-Patterns/Timing-out,moving-on,.md","ref":"Go-Concurrency-Patterns/Timing-out,moving-on,.md","articles":[]}]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":["livereload"],"pluginsConfig":{"livereload":{},"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"Go-Concurrency-Patterns/Timing-out,moving-on,.md","mtime":"2021-11-15T02:50:26.483Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2021-11-15T02:55:45.839Z"},"basePath":"..","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    <script src="../gitbook/gitbook.js"></script>
+    <script src="../gitbook/theme.js"></script>
+    
+        
+        <script src="../gitbook/gitbook-plugin-livereload/plugin.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-sharing/buttons.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    </body>
+</html>
+
